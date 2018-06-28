@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Please run as root"
+    exit
+fi
+
+readonly YELLOW='\033[1;33m'
+readonly NC='\033[0m'
+readonly SD="$1"
+readonly HOSTNAME="$2"
+
+if [ -z "$SD" ]; then
+    echo "Missing device to flash on"
+    exit
+fi
+
+echo -e "${YELLOW}WARNING!${NC}"
+echo -e "About to flash Arch Linux ARM on ${YELLOW}$SD${NC}. All data will be lost."
+
+while true; do
+    read -rp "Do you wish to continue? [y/n] " yn
+
+    case "$yn" in
+        [Nn]* )
+            echo "Aborting."
+            exit;;
+        [Yy]* )
+            break;;
+    esac
+done
+
+MIRROR="http://os.archlinuxarm.org/os"
+FS="ArchLinuxARM-rpi-2-latest.tar.gz"
+
+echo "[INFO] Removing signatures from drive..."
+wipefs --all --force "$SD"
+echo "[INFO] Setting up partition layout..."
+echo "o
+n
+p
+1
+
++100M
+t
+c
+n
+p
+2
+
+
+w" | fdisk "$SD" > /dev/null
+echo "[INFO] Formatting partitions..."
+yes | mkfs.vfat "$SD"1
+yes | mkfs.ext4 "$SD"2
+echo "[INFO] Preparing folder mounts..."
+mkdir -p boot root
+mount "$SD"1 boot
+mount "$SD"2 root
+echo "[INFO] Downloading filesystem..."
+wget "$MIRROR"/"$FS" -q --show-progress
+echo "[INFO] Flashing Arch Linux ARM..."
+bsdtar -xpf "$FS" -C root
+echo "[INFO] Committing buffer cache to disk. This may take a while..."
+sync
+echo "[INFO] Committing boot files..."
+mv root/boot/* boot
+echo "[INFO] Preparing setup script..."
+echo "#!/usr/bin/env sh" > root/home/alarm/setup.sh
+echo "pacman-key --init" >> root/home/alarm/setup.sh
+echo "pacman-key --populate archlinuxarm" >> root/home/alarm/setup.sh
+if [ -n "$HOSTNAME" ]; then
+    echo "[INFO] Setting hostname to $HOSTNAME..."
+    echo "$HOSTNAME" > root/etc/hostname
+fi
+exit
+echo "[INFO] Cleaning up..."
+umount boot root
+rmdir boot root
+rm "$FS"
+echo "Done!"
