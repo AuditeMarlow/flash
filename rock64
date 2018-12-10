@@ -34,8 +34,8 @@ done
 MIRROR="http://os.archlinuxarm.org/os"
 FS="ArchLinuxARM-aarch64-latest.tar.gz"
 
-echo -e "${BOLD}[INFO]${NC} Zeroing device..."
-dd if=/dev/zero of="$SD"
+echo -e "${BOLD}[INFO]${NC} Removing signatures from drive..."
+wipefs --all --force "$SD"
 echo -e "${BOLD}[INFO]${NC} Setting up partition layout..."
 echo "o
 n
