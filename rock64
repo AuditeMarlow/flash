@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+echo
+echo "                         888       .d8888b.      d8888  ";
+echo "                         888      d88P  Y88b    d8P888  ";
+echo "                         888      888          d8P 888  ";
+echo "888d888 .d88b.   .d8888b 888  888 888d888b.   d8P  888  ";
+echo "888P\"  d88\"\"88b d88P\"    888 .88P 888P \"Y88b d88   888  ";
+echo "888    888  888 888      888888K  888    888 8888888888 ";
+echo "888    Y88..88P Y88b.    888 \"88b Y88b  d88P       888  ";
+echo "888     \"Y88P\"   \"Y8888P 888  888  \"Y8888P\"        888  ";
+echo
+
 if [ "$(id -u)" -ne 0 ]; then
     echo "Please run as root"
     exit
