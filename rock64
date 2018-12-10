@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Please run as root"
+    exit
+fi
+
+readonly YELLOW='\033[1;33m'
+readonly BOLD='\033[1m'
+readonly NC='\033[0m'
+readonly SD="$1"
+readonly HOSTNAME="$2"
+
+if [ -z "$SD" ]; then
+    echo "Missing device to flash on"
+    exit 2
+fi
+
+echo -e "${YELLOW}WARNING!${NC}"
+echo -e "About to flash Arch Linux ARM on ${YELLOW}$SD${NC}. All data will be lost."
+
+while true; do
+    read -rp "Do you wish to continue? [y/n] " yn
+
+    case "$yn" in
+        [Nn]* )
+            echo "Aborting."
+            exit;;
+        [Yy]* )
+            break;;
+    esac
+done
+
+MIRROR="http://os.archlinuxarm.org/os"
+FS="ArchLinuxARM-aarch64-latest.tar.gz"
+
+echo -e "${BOLD}[INFO]${NC} Zeroing device..."
+dd if=/dev/zero of="$SD"
+echo -e "${BOLD}[INFO]${NC} Setting up partition layout..."
+echo "o
+n
+p
+1
+32768
+
+w" | fdisk "$SD" > /dev/null
+echo -e "${BOLD}[INFO]${NC} Formattion partition(s)..."
+yes | mkfs.ext4 "$SD"1
+echo -e "${BOLD}[INFO]${NC} Preparing folder mounts..."
+mkdir -p root
+mount "$SD"1 root
+echo -e "${BOLD}[INFO]${NC} Downloading filesystem..."
+wget "$MIRROR"/"$FS" -q --show-progress
+echo -e "${BOLD}[INFO]${NC} Flashing Arch Linux ARM..."
+bsdtar -xpf "$FS" -C root
+echo -e "${BOLD}[INFO]${NC} Preparing boot.scr for U-Boot..."
+wget "$MIRROR"/rockchip/boot/rock64/boot.scr -O root/boot/boot.scr
+echo -e "${BOLD}[INFO]${NC} Unmounting root partition, this may take a while..."
+umount root
+echo -e "${BOLD}[INFO]${NC} Install the U-Boot bootloader..."
+wget "$MIRROR"/rockchip/boot/rock64/idbloader.img
+wget "$MIRROR"/rockchip/boot/rock64/uboot.img
+wget "$MIRROR"/rockchip/boot/rock64/trust.img
+dd if=idbloader.img of="$SD" seek=64 conv=notrunc
+dd if=uboot.img of="$SD" seek=16384 conv=notrunc
+dd if=trust.img of="$SD" seek=24576 conv=notrunc
+echo -e "${BOLD}[INFO]${NC} Cleaning up..."
+rmdir root
+rm "$FS" idbloader.img uboot.img trust.img
+echo "Done!"
